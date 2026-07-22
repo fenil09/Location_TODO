@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoTask - Location-Based TODO & Reminders</title>
+  <meta name="description" content="Manage your tasks visually on an interactive map with location radius alerts and proximity reminders.">
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet.js CSS for Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar / Panel -->
+    <aside class="sidebar" id="sidebar">
+      <header class="app-header">
+        <div class="brand">
+          <div class="brand-icon">
+            <i class="fa-solid fa-location-dot"></i>
+          </div>
+          <div>
+            <h1>GeoTask</h1>
+            <span class="tagline">Location-Aware Reminders</span>
+          </div>
+        </div>
+        <button id="toggle-sidebar-btn" class="icon-btn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+      </header>
+
+      <!-- Geolocation Control Status -->
+      <div class="location-status-card" id="user-location-status">
+        <div class="status-indicator warning" id="gps-indicator"></div>
+        <div class="status-info">
+          <span class="status-title" id="gps-status-title">Acquiring GPS...</span>
+          <span class="status-subtitle" id="gps-status-coords">Locating your current coordinates</span>
+        </div>
+        <button id="recenter-user-btn" class="btn-subtle" title="Recenter Map to Me">
+          <i class="fa-solid fa-crosshairs"></i>
+        </button>
+      </div>
+
+      <!-- Quick Action: Add Task -->
+      <div class="actions-bar">
+        <button id="open-add-modal-btn" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-plus"></i> New Location Task
+        </button>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="filter-section">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="task-search-input" placeholder="Search tasks or addresses...">
+        </div>
+        <div class="filter-pills">
+          <button class="pill active" data-filter="all">All</button>
+          <button class="pill" data-filter="nearby"><i class="fa-solid fa-compass"></i> Nearby</button>
+          <button class="pill" data-filter="active">Active</button>
+          <button class="pill" data-filter="completed">Completed</button>
+        </div>
+      </div>
+
+      <!-- Task List -->
+      <div class="task-list-container">
+        <div id="task-list" class="task-list">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state hidden">
+          <div class="empty-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+          <h3>No location tasks yet</h3>
+          <p>Click anywhere on the map or press "New Location Task" to set a location reminder.</p>
+        </div>
+      </div>
+
+      <!-- Backend Connection Status Footer -->
+      <footer class="sidebar-footer">
+        <div class="api-status">
+          <span class="api-dot offline" id="api-dot"></span>
+          <span id="api-status-text">Connecting to Python FastAPI...</span>
+        </div>
+      </footer>
+    </aside>
+
+    <!-- Map View Area -->
+    <main class="map-view">
+      <!-- Search Address Overlay on Map -->
+      <div class="map-search-overlay">
+        <div class="map-search-container">
+          <i class="fa-solid fa-location-dot"></i>
+          <input type="text" id="map-address-search" placeholder="Search places, street or city...">
+          <button id="search-address-btn" class="icon-btn-inline" title="Search Location">
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+        <div id="address-suggestions" class="address-suggestions hidden"></div>
+      </div>
+
+      <!-- Floating Map Action Buttons -->
+      <div class="map-floating-controls">
+        <button id="mobile-menu-toggle" class="floating-btn" title="Toggle Sidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <button id="locate-me-floating" class="floating-btn" title="Locate My Current Position">
+          <i class="fa-solid fa-location-arrow"></i>
+        </button>
+      </div>
+
+      <!-- Leaflet Map Container -->
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <!-- Create/Edit Task Modal -->
+  <div id="task-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <header class="modal-header">
+        <h2 id="modal-title"><i class="fa-solid fa-thumbtack"></i> New Location Task</h2>
+        <button id="close-modal-btn" class="icon-btn-subtle">&times;</button>
+      </header>
+
+      <form id="task-form">
+        <input type="hidden" id="task-id">
+
+        <div class="form-group">
+          <label for="task-title">Task Title *</label>
+          <input type="text" id="task-title" required placeholder="e.g. Pick up groceries at Trader Joe's">
+        </div>
+
+        <div class="form-group">
+          <label for="task-desc">Description & Notes</label>
+          <textarea id="task-desc" rows="3" placeholder="Add specific items to buy or instructions..."></textarea>
+        </div>
+
+        <!-- Location Selection Inputs -->
+        <div class="form-row">
+          <div class="form-group flex-2">
+            <label for="task-address"><i class="fa-solid fa-map-pin"></i> Location / Address</label>
+            <div class="input-with-button">
+              <input type="text" id="task-address" placeholder="Click map or search location...">
+              <button type="button" id="geocode-btn" class="btn-subtle-sm" title="Lookup Address">
+                <i class="fa-solid fa-magnifying-glass-location"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-lat">Latitude</label>
+            <input type="number" step="any" id="task-lat" required placeholder="37.7749">
+          </div>
+          <div class="form-group">
+            <label for="task-lng">Longitude</label>
+            <input type="number" step="any" id="task-lng" required placeholder="-122.4194">
+          </div>
+        </div>
+
+        <!-- Radius Slider -->
+        <div class="form-group">
+          <div class="label-with-value">
+            <label for="task-radius"><i class="fa-solid fa-circle-notch"></i> Reminder Radius</label>
+            <span id="radius-value-display">100 meters</span>
+          </div>
+          <input type="range" id="task-radius" min="20" max="2000" step="10" value="100">
+          <div class="range-labels">
+            <span>20m (Tight)</span>
+            <span>500m</span>
+            <span>2km (Wide)</span>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="cancel-task-btn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="save-task-btn" class="btn btn-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Save Location Task
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Proximity Alert Toast / Banner -->
+  <div id="proximity-alert-container" class="proximity-alert-container"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Application JS Logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>
