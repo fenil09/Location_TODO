@@ -1,0 +1,28 @@
+1. class Task(BaseModel):
+What (BaseModel) means: BaseModel is the parent class provided by Pydantic. Putting BaseModel in parentheses tells Python: "Give this class Pydantic's superpowers (like automatic data type checking and validation)."
+Why we make Task: Think of Task as the blueprint containing all the common fields every task shares (title, description, latitude, longitude, address_name, radius_meters).
+2. Why class TodoCreate(Task): pass?
+What passing (Task) means: TodoCreate is a child of Task. It inherits (copies) all 6 fields directly from Task without you having to type them again!
+Why we use it: When a user creates a new task, they MUST provide title, latitude, and longitude (they are required!). Task has these required fields, so TodoCreate just reuses Task as-is.
+What pass means: Python requires every class to have a body. pass means "I don't need to add any new fields here, just use everything from Task."
+3. Why class TodoUpdate(BaseModel): inherits from BaseModel instead of Task?
+This is the most important distinction:
+
+When creating a task (TodoCreate), fields like title and latitude are REQUIRED.
+When updating a task (TodoUpdate), the user might only want to change ONE single detail (e.g. just checking a box completed = True, or editing the description). They don't want to be forced to re-send title or latitude if they aren't changing them!
+If TodoUpdate inherited from Task, title, latitude, and longitude would still be strictly required!
+Therefore, TodoUpdate inherits directly from (BaseModel) so we can define every single field as optional (Optional[...] = None).
+
+
+
+
+What about TodoResponse?
+When reading a task from the database to send back to the frontend, we want all fields from Task, PLUS two extra pieces of info that only exist after saving to the database:
+
+id: The unique document ID from Firestore.
+completed: A bool (True or False).
+So TodoResponse inherits from Task and adds those 2 fields:
+
+
+Field is a function that is provided by Pydantic which is allowing the user
+to attach extra configuration to a field like description and default values

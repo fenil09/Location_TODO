@@ -45,7 +45,7 @@ class GeoTaskApp {
     this.taskModal = document.getElementById('task-modal');
     this.taskForm = document.getElementById('task-form');
     this.modalTitle = document.getElementById('modal-title');
-    
+
     // Inputs
     this.taskIdInput = document.getElementById('task-id');
     this.taskTitleInput = document.getElementById('task-title');
@@ -58,7 +58,7 @@ class GeoTaskApp {
     this.searchInput = document.getElementById('task-search-input');
     this.mapSearchInput = document.getElementById('map-address-search');
     this.addressSuggestions = document.getElementById('address-suggestions');
-    
+
     // Buttons & Status
     this.openAddBtn = document.getElementById('open-add-modal-btn');
     this.closeModalBtn = document.getElementById('close-modal-btn');
@@ -196,7 +196,7 @@ class GeoTaskApp {
 
   openTaskModal(coords = null, taskToEdit = null) {
     this.taskForm.reset();
-    
+
     if (taskToEdit) {
       this.modalTitle.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Edit Location Task`;
       this.taskIdInput.value = taskToEdit.id;
@@ -257,7 +257,7 @@ class GeoTaskApp {
       (error) => {
         console.warn('Geolocation error:', error.message);
         this.updateGPSStatus('warning', 'Simulated Location', 'Defaulting to map center');
-        
+
         // Fallback default coordinates if user denies or GPS unavailable
         if (!this.userLocation) {
           this.userLocation = { lat: 37.7749, lng: -122.4194 };
@@ -713,7 +713,7 @@ class GeoTaskApp {
      ========================================================================== */
   buildGeocodeUrl(query) {
     let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&extratags=1&namedetails=1&limit=6&q=${encodeURIComponent(query)}`;
-    
+
     // Proximity bias: if user location is available, bound search near user
     if (this.userLocation) {
       const delta = 0.5; // ~50km viewbox

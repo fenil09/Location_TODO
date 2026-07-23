@@ -1,0 +1,20 @@
+# Credentials and Secrets
+firebase_key.json
+*.json
+!.eslintrc.json
+
+# Python Environment & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+env/
+venv/
+ENV/
+
+# OS / IDE Files
+.DS_Store
+.vscode/
+.idea/
