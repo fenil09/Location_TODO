@@ -231,6 +231,11 @@ class GeoTaskApp {
      3. Geolocation & Proximity Alert System
      ========================================================================== */
   initGeolocationTracking() {
+    // Request desktop notification permission for system-level geofence alerts
+    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
+
     if (!('geolocation' in navigator)) {
       this.updateGPSStatus('error', 'GPS Unavailable', 'Browser does not support Geolocation');
       return;
@@ -373,6 +378,18 @@ class GeoTaskApp {
 
     toastContainer.appendChild(toast);
 
+    // 3. Display OS Desktop Notification
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(`Task Nearby (${distanceMeters}m away)`, {
+          body: task.title + (task.address_name ? ` - ${task.address_name}` : ''),
+          icon: 'https://cdn-icons-png.flaticon.com/512/684/684908.png'
+        });
+      } catch (e) {
+        console.log('Desktop notification error:', e);
+      }
+    }
+
     setTimeout(() => {
       toast.style.animation = 'toast-in 0.3s reverse ease-in';
       setTimeout(() => toast.remove(), 300);
@@ -385,21 +402,25 @@ class GeoTaskApp {
       if (!AudioContext) return;
 
       const ctx = new AudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5 note
 
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
-      osc.start();
-      osc.stop(ctx.currentTime + 0.5);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.6);
     } catch (e) {
       console.log('Audio chime error:', e);
     }

@@ -6,6 +6,7 @@ import os
 
 from model import TodoCreate, TodoResponse, TodoUpdate
 from firestore_service import create_todo, get_all_todos,update_todo,delete_todo
+from geo_utils import iswithin_radius
 
 app = FastAPI(title="GeoTask API", version="1.0.0")
 
@@ -68,6 +69,37 @@ async def delete_todo_endpoint(todo_id: str):
         return {"success": True, "deleted_id": todo_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/api/todos/nearby")
+async def fetch_nearby_todos(lat:float,lng:float):
+    try:
+        all_todos = get_all_todos()
+        annotate_todos = []
+
+        for todo in all_todos:
+            task_lat = todo.get("latitude")
+            task_lng = todo.get("longitude")
+            radius = todo.get("radius_meters",100)
+
+            if task_lat is not None and task_lng is not None:
+                is_inside , dist = iswithin_radius(lat,lng,task_lat,task_lng,radius)
+                todo["distance_meters"] = dist
+                todo["is_inside"] = is_inside
+            
+            else:
+                todo["distance_meters"] = None
+                todo["is_inside"] = False
+            
+            annotate_todos.append(todo)
+        
+        annotate_todos.sort(key = lambda t: t["distance_meters"] if t["distance_meters"] is not None else float("inf"))
+    
+        return annotate_todos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+                
 
 if __name__ == "__main__":
     import uvicorn
