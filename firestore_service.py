@@ -7,46 +7,52 @@ import json
 
 def get_DB():
     if not firebase_admin._apps:
-        env_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+        cred = None
 
-        # List candidate paths to check for the key file
-        possible_paths = [
-            os.getenv("FIREBASE_KEY_PATH"),
-            "/etc/secrets/firebase_key.json",  # Render's default Secret File location
-            "firebase_key.json",                 # Project root
-            "/home/fenil/Desktop/Location_TODO/firebase_key.json"
-        ]
+        # 1. Search all environment variables for any JSON string containing Firebase credentials
+        for key, val in os.environ.items():
+            if val and isinstance(val, str) and val.strip().startswith("{") and ("private_key" in val or "project_id" in val):
+                try:
+                    cred_dict = json.loads(val.strip())
+                    cred = credentials.Certificate(cred_dict)
+                    print(f"✅ Successfully loaded Firebase credentials from environment variable: '{key}'")
+                    break
+                except Exception as err:
+                    print(f"⚠️ Failed parsing env var {key}: {err}")
 
-        # Auto-discover any .json file in Render's secret directory
-        if os.path.exists("/etc/secrets"):
-            try:
-                for fname in os.listdir("/etc/secrets"):
-                    if fname.endswith(".json"):
+        # 2. Search candidate file paths & /etc/secrets directory
+        if not cred:
+            possible_paths = [
+                os.getenv("FIREBASE_KEY_PATH"),
+                "/etc/secrets/firebase_key.json",
+                "firebase_key.json",
+                "/home/fenil/Desktop/Location_TODO/firebase_key.json"
+            ]
+
+            if os.path.exists("/etc/secrets"):
+                try:
+                    for fname in os.listdir("/etc/secrets"):
                         possible_paths.append(os.path.join("/etc/secrets", fname))
-            except Exception:
-                pass
-        
-        found_path = None
-        for p in possible_paths:
-            if p and os.path.exists(p):
-                found_path = p
-                break
+                except Exception:
+                    pass
 
-        if env_json:
-            try:
-                cred_dict = json.loads(env_json.strip())
-                cred = credentials.Certificate(cred_dict)
-            except Exception as err:
-                raise ValueError(f"Failed to parse FIREBASE_CREDENTIALS_JSON environment variable: {err}")
-        elif found_path:
-            cred = credentials.Certificate(found_path)
-        else:
-            secrets_contents = os.listdir("/etc/secrets") if os.path.exists("/etc/secrets") else "/etc/secrets directory does not exist"
+            for p in possible_paths:
+                if p and os.path.exists(p) and os.path.isfile(p):
+                    try:
+                        cred = credentials.Certificate(p)
+                        print(f"✅ Successfully loaded Firebase credentials from file: '{p}'")
+                        break
+                    except Exception as err:
+                        print(f"⚠️ Failed loading key file {p}: {err}")
+
+        if not cred:
+            env_keys = [k for k in os.environ.keys() if not k.startswith("npm_")]
+            secrets_contents = os.listdir("/etc/secrets") if os.path.exists("/etc/secrets") else "Directory /etc/secrets does not exist"
             raise FileNotFoundError(
-                f"Error: Firebase key file not found.\n"
-                f"Checked paths: {possible_paths}\n"
-                f"/etc/secrets contents: {secrets_contents}\n"
-                f"Please add Environment Variable 'FIREBASE_CREDENTIALS_JSON' or Secret File 'firebase_key.json' in Render Dashboard."
+                f"🔥 FIREBASE CREDENTIALS NOT FOUND!\n"
+                f"Available Environment Variables on Render: {env_keys}\n"
+                f"Files in /etc/secrets: {secrets_contents}\n"
+                f"Troubleshooting: In Render Dashboard -> Environment, ensure you added 'FIREBASE_CREDENTIALS_JSON' or Secret File 'firebase_key.json' and saved changes."
             )
 
         firebase_admin.initialize_app(cred)
