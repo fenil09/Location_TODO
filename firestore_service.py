@@ -3,14 +3,24 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 
-KEY_PATH= '/home/fenil/Desktop/Location_TODO/firebase_key.json'
+import json
 
 def get_DB():
-    if not os.path.exists(KEY_PATH):
-        raise FileNotFoundError(f"Error: The key file was not found at {KEY_PATH}")
-
     if not firebase_admin._apps:
-        cred = credentials.Certificate(KEY_PATH)
+        # Check env var for path, secret file on Render, or relative local path
+        key_path = os.getenv("FIREBASE_KEY_PATH", "firebase_key.json")
+        env_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+
+        if env_json:
+            cred_dict = json.loads(env_json)
+            cred = credentials.Certificate(cred_dict)
+        elif os.path.exists(key_path):
+            cred = credentials.Certificate(key_path)
+        elif os.path.exists('/home/fenil/Desktop/Location_TODO/firebase_key.json'):
+            cred = credentials.Certificate('/home/fenil/Desktop/Location_TODO/firebase_key.json')
+        else:
+            raise FileNotFoundError(f"Error: Firebase key file not found at '{key_path}'. Set FIREBASE_CREDENTIALS_JSON env var or upload Secret File on Render.")
+
         firebase_admin.initialize_app(cred)
 
     return firestore.client()
