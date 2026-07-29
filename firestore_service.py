@@ -7,6 +7,8 @@ import json
 
 def get_DB():
     if not firebase_admin._apps:
+        env_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+
         # List candidate paths to check for the key file
         possible_paths = [
             os.getenv("FIREBASE_KEY_PATH"),
