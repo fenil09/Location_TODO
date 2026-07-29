@@ -3,6 +3,12 @@
  * Leaflet.js Map + Geolocation Tracking + Proximity Geofencing Alerts
  */
 
+// Configure Render backend URL here once deployed on Cloudflare Pages
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? ''
+  : (window.RENDER_BACKEND_URL || 'https://your-backend-name.onrender.com');
+
+
 class GeoTaskApp {
   constructor() {
     // State
@@ -45,7 +51,7 @@ class GeoTaskApp {
     this.taskModal = document.getElementById('task-modal');
     this.taskForm = document.getElementById('task-form');
     this.modalTitle = document.getElementById('modal-title');
-
+    
     // Inputs
     this.taskIdInput = document.getElementById('task-id');
     this.taskTitleInput = document.getElementById('task-title');
@@ -58,7 +64,7 @@ class GeoTaskApp {
     this.searchInput = document.getElementById('task-search-input');
     this.mapSearchInput = document.getElementById('map-address-search');
     this.addressSuggestions = document.getElementById('address-suggestions');
-
+    
     // Buttons & Status
     this.openAddBtn = document.getElementById('open-add-modal-btn');
     this.closeModalBtn = document.getElementById('close-modal-btn');
@@ -196,7 +202,7 @@ class GeoTaskApp {
 
   openTaskModal(coords = null, taskToEdit = null) {
     this.taskForm.reset();
-
+    
     if (taskToEdit) {
       this.modalTitle.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Edit Location Task`;
       this.taskIdInput.value = taskToEdit.id;
@@ -262,7 +268,7 @@ class GeoTaskApp {
       (error) => {
         console.warn('Geolocation error:', error.message);
         this.updateGPSStatus('warning', 'Simulated Location', 'Defaulting to map center');
-
+        
         // Fallback default coordinates if user denies or GPS unavailable
         if (!this.userLocation) {
           this.userLocation = { lat: 37.7749, lng: -122.4194 };
@@ -431,7 +437,7 @@ class GeoTaskApp {
      ========================================================================== */
   async checkBackendConnection() {
     try {
-      const res = await fetch('/api/todos', { method: 'GET' });
+      const res = await fetch(`${API_BASE_URL}/api/todos`, { method: 'GET' });
       if (res.ok) {
         this.isBackendOnline = true;
         this.apiDot.className = 'api-dot online';
@@ -451,7 +457,7 @@ class GeoTaskApp {
 
     if (this.isBackendOnline) {
       try {
-        const res = await fetch('/api/todos');
+        const res = await fetch(`${API_BASE_URL}/api/todos`);
         this.tasks = await res.json();
       } catch (e) {
         this.tasks = this.getLocalTasks();
@@ -502,13 +508,13 @@ class GeoTaskApp {
     if (this.isBackendOnline) {
       try {
         if (id) {
-          await fetch(`/api/todos/${id}`, {
+          await fetch(`${API_BASE_URL}/api/todos/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(taskData)
           });
         } else {
-          await fetch('/api/todos', {
+          await fetch(`${API_BASE_URL}/api/todos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(taskData)
@@ -541,7 +547,7 @@ class GeoTaskApp {
 
     if (this.isBackendOnline) {
       try {
-        await fetch(`/api/todos/${id}`, {
+        await fetch(`${API_BASE_URL}/api/todos/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ completed: task.completed })
@@ -559,7 +565,7 @@ class GeoTaskApp {
   async deleteTask(id) {
     if (this.isBackendOnline) {
       try {
-        await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE_URL}/api/todos/${id}`, { method: 'DELETE' });
       } catch (e) {
         console.error('API Delete Error:', e);
       }
@@ -734,7 +740,7 @@ class GeoTaskApp {
      ========================================================================== */
   buildGeocodeUrl(query) {
     let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&extratags=1&namedetails=1&limit=6&q=${encodeURIComponent(query)}`;
-
+    
     // Proximity bias: if user location is available, bound search near user
     if (this.userLocation) {
       const delta = 0.5; // ~50km viewbox

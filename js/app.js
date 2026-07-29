@@ -3,6 +3,12 @@
  * Leaflet.js Map + Geolocation Tracking + Proximity Geofencing Alerts
  */
 
+// Configure Render backend URL here once deployed on Cloudflare Pages
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? ''
+  : (window.RENDER_BACKEND_URL || 'https://your-backend-name.onrender.com');
+
+
 class GeoTaskApp {
   constructor() {
     // State
@@ -431,7 +437,7 @@ class GeoTaskApp {
      ========================================================================== */
   async checkBackendConnection() {
     try {
-      const res = await fetch('/api/todos', { method: 'GET' });
+      const res = await fetch(`${API_BASE_URL}/api/todos`, { method: 'GET' });
       if (res.ok) {
         this.isBackendOnline = true;
         this.apiDot.className = 'api-dot online';
@@ -451,7 +457,7 @@ class GeoTaskApp {
 
     if (this.isBackendOnline) {
       try {
-        const res = await fetch('/api/todos');
+        const res = await fetch(`${API_BASE_URL}/api/todos`);
         this.tasks = await res.json();
       } catch (e) {
         this.tasks = this.getLocalTasks();
@@ -502,13 +508,13 @@ class GeoTaskApp {
     if (this.isBackendOnline) {
       try {
         if (id) {
-          await fetch(`/api/todos/${id}`, {
+          await fetch(`${API_BASE_URL}/api/todos/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(taskData)
           });
         } else {
-          await fetch('/api/todos', {
+          await fetch(`${API_BASE_URL}/api/todos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(taskData)
@@ -541,7 +547,7 @@ class GeoTaskApp {
 
     if (this.isBackendOnline) {
       try {
-        await fetch(`/api/todos/${id}`, {
+        await fetch(`${API_BASE_URL}/api/todos/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ completed: task.completed })
@@ -559,7 +565,7 @@ class GeoTaskApp {
   async deleteTask(id) {
     if (this.isBackendOnline) {
       try {
-        await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE_URL}/api/todos/${id}`, { method: 'DELETE' });
       } catch (e) {
         console.error('API Delete Error:', e);
       }

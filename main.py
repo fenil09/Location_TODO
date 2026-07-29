@@ -19,18 +19,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount CSS & JS static directories so relative links in index.html load perfectly!
-if os.path.exists("css"):
-    app.mount("/css", StaticFiles(directory="css"), name="css")
-if os.path.exists("js"):
-    app.mount("/js", StaticFiles(directory="js"), name="js")
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-
+# Serves API status info at root endpoint
 @app.get("/")
-async def serve_index():
-    """Serves the main frontend map user interface."""
-    return FileResponse("index.html")
+async def root_api_info():
+    """Returns API health and status information."""
+    return {
+        "status": "online",
+        "service": "GeoTask Backend API",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
 
 @app.get("/api/todos")
 async def fetch_all_todos():
