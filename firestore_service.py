@@ -7,19 +7,27 @@ import json
 
 def get_DB():
     if not firebase_admin._apps:
-        # Check env var for path, secret file on Render, or relative local path
-        key_path = os.getenv("FIREBASE_KEY_PATH", "firebase_key.json")
-        env_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+        # List candidate paths to check for the key file
+        possible_paths = [
+            os.getenv("FIREBASE_KEY_PATH"),
+            "/etc/secrets/firebase_key.json",  # Render's default Secret File location
+            "firebase_key.json",                 # Project root
+            "/home/fenil/Desktop/Location_TODO/firebase_key.json"
+        ]
+        
+        found_path = None
+        for p in possible_paths:
+            if p and os.path.exists(p):
+                found_path = p
+                break
 
         if env_json:
             cred_dict = json.loads(env_json)
             cred = credentials.Certificate(cred_dict)
-        elif os.path.exists(key_path):
-            cred = credentials.Certificate(key_path)
-        elif os.path.exists('/home/fenil/Desktop/Location_TODO/firebase_key.json'):
-            cred = credentials.Certificate('/home/fenil/Desktop/Location_TODO/firebase_key.json')
+        elif found_path:
+            cred = credentials.Certificate(found_path)
         else:
-            raise FileNotFoundError(f"Error: Firebase key file not found at '{key_path}'. Set FIREBASE_CREDENTIALS_JSON env var or upload Secret File on Render.")
+            raise FileNotFoundError("Error: Firebase key file not found. Set 'FIREBASE_CREDENTIALS_JSON' env var or add Secret File 'firebase_key.json' on Render.")
 
         firebase_admin.initialize_app(cred)
 
