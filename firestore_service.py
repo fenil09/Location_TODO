@@ -16,6 +16,15 @@ def get_DB():
             "firebase_key.json",                 # Project root
             "/home/fenil/Desktop/Location_TODO/firebase_key.json"
         ]
+
+        # Auto-discover any .json file in Render's secret directory
+        if os.path.exists("/etc/secrets"):
+            try:
+                for fname in os.listdir("/etc/secrets"):
+                    if fname.endswith(".json"):
+                        possible_paths.append(os.path.join("/etc/secrets", fname))
+            except Exception:
+                pass
         
         found_path = None
         for p in possible_paths:
@@ -24,12 +33,21 @@ def get_DB():
                 break
 
         if env_json:
-            cred_dict = json.loads(env_json)
-            cred = credentials.Certificate(cred_dict)
+            try:
+                cred_dict = json.loads(env_json.strip())
+                cred = credentials.Certificate(cred_dict)
+            except Exception as err:
+                raise ValueError(f"Failed to parse FIREBASE_CREDENTIALS_JSON environment variable: {err}")
         elif found_path:
             cred = credentials.Certificate(found_path)
         else:
-            raise FileNotFoundError("Error: Firebase key file not found. Set 'FIREBASE_CREDENTIALS_JSON' env var or add Secret File 'firebase_key.json' on Render.")
+            secrets_contents = os.listdir("/etc/secrets") if os.path.exists("/etc/secrets") else "/etc/secrets directory does not exist"
+            raise FileNotFoundError(
+                f"Error: Firebase key file not found.\n"
+                f"Checked paths: {possible_paths}\n"
+                f"/etc/secrets contents: {secrets_contents}\n"
+                f"Please add Environment Variable 'FIREBASE_CREDENTIALS_JSON' or Secret File 'firebase_key.json' in Render Dashboard."
+            )
 
         firebase_admin.initialize_app(cred)
 
