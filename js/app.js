@@ -6,7 +6,7 @@
 // Configure Render backend URL here once deployed on Cloudflare Pages
 const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? ''
-  : (window.RENDER_BACKEND_URL || 'https://your-backend-name.onrender.com');
+  : (window.RENDER_BACKEND_URL || 'https://location-todo.onrender.com');
 
 
 class GeoTaskApp {
