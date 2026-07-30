@@ -686,7 +686,7 @@ class GeoTaskApp {
         method: 'GET',
         headers: this.getAuthHeaders()
       });
-      if (res.ok) {
+      if (res.ok || res.status === 401) {
         this.isBackendOnline = true;
         this.apiDot.className = 'api-dot online';
         this.apiStatusText.textContent = 'Connected to FastAPI & Firestore';
@@ -697,10 +697,13 @@ class GeoTaskApp {
     }
     this.isBackendOnline = false;
     this.apiDot.className = 'api-dot offline';
-    this.apiStatusText.textContent = 'Standby Mode (FastAPI offline - using LocalStorage)';
+    this.apiStatusText.textContent = 'Standby Mode (FastAPI offline)';
   }
 
   async loadTasks() {
+    // Remove any legacy localstorage task cache
+    localStorage.removeItem('geotask_items');
+
     await this.checkBackendConnection();
 
     if (this.isBackendOnline) {
@@ -711,44 +714,18 @@ class GeoTaskApp {
         if (res.ok) {
           this.tasks = await res.json();
         } else {
-          this.tasks = this.getLocalTasks();
+          this.tasks = [];
         }
       } catch (e) {
-        this.tasks = this.getLocalTasks();
+        console.error('API Load Error:', e);
+        this.tasks = [];
       }
     } else {
-      this.tasks = this.getLocalTasks();
+      this.tasks = [];
     }
 
     this.renderTasks();
     this.renderMapMarkers();
-  }
-
-  getLocalTasks() {
-    const data = localStorage.getItem('geotask_items');
-    const all = data ? JSON.parse(data) : [
-      {
-        id: 'sample-1',
-        title: 'Handel\'s Homemade Ice Cream - Long Beach',
-        description: 'Try the mint chocolate chip or graham central station!',
-        latitude: 33.7558,
-        longitude: -118.1189,
-        address_name: '4201 E Ocean Blvd, Long Beach, CA',
-        radius_meters: 150,
-        completed: false,
-        user_id: null,
-        created_at: new Date().toISOString()
-      }
-    ];
-
-    if (this.currentUser && this.currentUser.id) {
-      return all.filter(t => t.user_id === this.currentUser.id || !t.user_id);
-    }
-    return all;
-  }
-
-  saveLocalTasks() {
-    localStorage.setItem('geotask_items', JSON.stringify(this.tasks));
   }
 
   async handleFormSubmit() {
@@ -786,7 +763,7 @@ class GeoTaskApp {
       }
     }
 
-    // Update in-memory & localstorage
+    // Update in-memory tasks
     if (id) {
       const idx = this.tasks.findIndex(t => t.id === id);
       if (idx !== -1) this.tasks[idx] = { ...this.tasks[idx], ...taskData };
@@ -794,7 +771,6 @@ class GeoTaskApp {
       this.tasks.unshift(taskData);
     }
 
-    this.saveLocalTasks();
     this.closeTaskModal();
     this.renderTasks();
     this.renderMapMarkers();
@@ -818,7 +794,6 @@ class GeoTaskApp {
       }
     }
 
-    this.saveLocalTasks();
     this.renderTasks();
     this.renderMapMarkers();
   }
@@ -836,7 +811,6 @@ class GeoTaskApp {
     }
 
     this.tasks = this.tasks.filter(t => t.id !== id);
-    this.saveLocalTasks();
     this.renderTasks();
     this.renderMapMarkers();
   }
