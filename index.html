@@ -39,6 +39,31 @@
         </button>
       </header>
 
+      <!-- User Account / Auth Bar -->
+      <div class="user-auth-card" id="user-auth-card">
+        <div id="auth-logged-out" class="auth-logged-out-state">
+          <div class="user-info">
+            <i class="fa-solid fa-circle-user avatar-icon"></i>
+            <span>Guest Mode</span>
+          </div>
+          <button id="open-auth-modal-btn" class="btn-subtle-sm primary-text">
+            <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+          </button>
+        </div>
+        <div id="auth-logged-in" class="auth-logged-in-state hidden">
+          <div class="user-info">
+            <div class="user-avatar" id="user-avatar-text">U</div>
+            <div>
+              <span class="user-name" id="user-display-name">Username</span>
+              <span class="user-status-tag">Personal Account</span>
+            </div>
+          </div>
+          <button id="logout-btn" class="btn-icon-danger" title="Sign Out">
+            <i class="fa-solid fa-power-off"></i>
+          </button>
+        </div>
+      </div>
+
       <!-- Geolocation Control Status -->
       <div class="location-status-card" id="user-location-status">
         <div class="status-indicator warning" id="gps-indicator"></div>
@@ -187,6 +212,85 @@
           <button type="button" id="cancel-task-btn" class="btn btn-secondary">Cancel</button>
           <button type="submit" id="save-task-btn" class="btn btn-primary">
             <i class="fa-solid fa-floppy-disk"></i> Save Location Task
+          </button>
+        </div>
+      </form>
+    </div>
+  <!-- Sign In / Register Modal -->
+  <div id="auth-modal" class="modal-overlay hidden">
+    <div class="modal-card auth-modal-card">
+      <header class="modal-header">
+        <h2><i class="fa-solid fa-user-shield"></i> GeoTask Account</h2>
+        <button id="close-auth-modal-btn" class="icon-btn-subtle">&times;</button>
+      </header>
+
+      <!-- Auth Tab Navigation -->
+      <div class="auth-tabs">
+        <button id="auth-tab-login" class="auth-tab active" data-tab="login">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In
+        </button>
+        <button id="auth-tab-register" class="auth-tab" data-tab="register">
+          <i class="fa-solid fa-user-plus"></i> Create Account
+        </button>
+      </div>
+
+      <!-- Auth Error / Success Message Container -->
+      <div id="auth-message-banner" class="auth-message-banner hidden"></div>
+
+      <!-- Form 1: Sign In -->
+      <form id="login-form" class="auth-form-panel">
+        <div class="form-group">
+          <label for="login-username">Username or Email *</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-user input-icon"></i>
+            <input type="text" id="login-username" required placeholder="Enter your username">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Password *</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-lock input-icon"></i>
+            <input type="password" id="login-password" required placeholder="••••••••">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fa-solid fa-right-to-bracket"></i> Sign In to GeoTask
+          </button>
+        </div>
+      </form>
+
+      <!-- Form 2: Create Account -->
+      <form id="register-form" class="auth-form-panel hidden">
+        <div class="form-group">
+          <label for="register-username">Username *</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-user-tag input-icon"></i>
+            <input type="text" id="register-username" required minlength="3" placeholder="Choose a username (min 3 chars)">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="register-password">Password *</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-key input-icon"></i>
+            <input type="password" id="register-password" required minlength="4" placeholder="Password (min 4 chars)">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="register-confirm-password">Confirm Password *</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-check-double input-icon"></i>
+            <input type="password" id="register-confirm-password" required minlength="4" placeholder="Re-enter password">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fa-solid fa-user-check"></i> Create Account & Get User ID
           </button>
         </div>
       </form>

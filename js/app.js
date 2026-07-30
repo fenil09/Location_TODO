@@ -19,6 +19,10 @@ class GeoTaskApp {
     this.isBackendOnline = false;
     this.notifiedTaskIds = new Set(); // Avoid repeated alert spam for same task
 
+    // Auth State
+    this.currentUser = JSON.parse(localStorage.getItem('geotask_user')) || null;
+    this.authToken = localStorage.getItem('geotask_token') || null;
+
     // Map & Layers
     this.map = null;
     this.userMarker = null;
@@ -35,11 +39,13 @@ class GeoTaskApp {
     // Initialize App
     this.initMap();
     this.initEventListeners();
+    this.initAuthEventListeners();
     this.initGeolocationTracking();
     this.checkBackendConnection();
 
     // Load initial tasks (Localstorage fallback if API offline)
     this.loadTasks();
+    this.updateUserUI();
   }
 
   /* ==========================================================================
@@ -52,6 +58,28 @@ class GeoTaskApp {
     this.taskForm = document.getElementById('task-form');
     this.modalTitle = document.getElementById('modal-title');
     
+    // Auth DOM Elements
+    this.userAuthCard = document.getElementById('user-auth-card');
+    this.authLoggedOut = document.getElementById('auth-logged-out');
+    this.authLoggedIn = document.getElementById('auth-logged-in');
+    this.userAvatarText = document.getElementById('user-avatar-text');
+    this.userDisplayName = document.getElementById('user-display-name');
+    this.openAuthModalBtn = document.getElementById('open-auth-modal-btn');
+    this.logoutBtn = document.getElementById('logout-btn');
+
+    this.authModal = document.getElementById('auth-modal');
+    this.closeAuthModalBtn = document.getElementById('close-auth-modal-btn');
+    this.authTabLogin = document.getElementById('auth-tab-login');
+    this.authTabRegister = document.getElementById('auth-tab-register');
+    this.authMessageBanner = document.getElementById('auth-message-banner');
+    this.loginForm = document.getElementById('login-form');
+    this.registerForm = document.getElementById('register-form');
+    this.loginUsernameInput = document.getElementById('login-username');
+    this.loginPasswordInput = document.getElementById('login-password');
+    this.registerUsernameInput = document.getElementById('register-username');
+    this.registerPasswordInput = document.getElementById('register-password');
+    this.registerConfirmPasswordInput = document.getElementById('register-confirm-password');
+
     // Inputs
     this.taskIdInput = document.getElementById('task-id');
     this.taskTitleInput = document.getElementById('task-title');
@@ -198,6 +226,223 @@ class GeoTaskApp {
       const address = this.taskAddressInput.value;
       if (address) this.forwardGeocodeModal(address);
     });
+  }
+
+  initAuthEventListeners() {
+    // Open/Close Auth Modal
+    if (this.openAuthModalBtn) {
+      this.openAuthModalBtn.addEventListener('click', () => this.openAuthModal('login'));
+    }
+    if (this.closeAuthModalBtn) {
+      this.closeAuthModalBtn.addEventListener('click', () => this.closeAuthModal());
+    }
+    if (this.logoutBtn) {
+      this.logoutBtn.addEventListener('click', () => this.handleLogout());
+    }
+
+    // Tabs
+    if (this.authTabLogin && this.authTabRegister) {
+      this.authTabLogin.addEventListener('click', () => this.switchAuthTab('login'));
+      this.authTabRegister.addEventListener('click', () => this.switchAuthTab('register'));
+    }
+
+    // Forms
+    if (this.loginForm) {
+      this.loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleLoginSubmit();
+      });
+    }
+
+    if (this.registerForm) {
+      this.registerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleRegisterSubmit();
+      });
+    }
+  }
+
+  getAuthHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+    if (this.currentUser && this.currentUser.id) {
+      headers['X-User-ID'] = this.currentUser.id;
+    }
+    return headers;
+  }
+
+  updateUserUI() {
+    if (this.currentUser) {
+      this.authLoggedOut.classList.add('hidden');
+      this.authLoggedIn.classList.remove('hidden');
+      this.userDisplayName.textContent = this.currentUser.username || 'User';
+      this.userAvatarText.textContent = (this.currentUser.username || 'U').charAt(0).toUpperCase();
+    } else {
+      this.authLoggedOut.classList.remove('hidden');
+      this.authLoggedIn.classList.add('hidden');
+    }
+  }
+
+  openAuthModal(tab = 'login') {
+    this.switchAuthTab(tab);
+    this.hideAuthMessage();
+    this.authModal.classList.remove('hidden');
+  }
+
+  closeAuthModal() {
+    this.authModal.classList.add('hidden');
+    this.loginForm.reset();
+    this.registerForm.reset();
+    this.hideAuthMessage();
+  }
+
+  switchAuthTab(tab) {
+    if (tab === 'login') {
+      this.authTabLogin.classList.add('active');
+      this.authTabRegister.classList.remove('active');
+      this.loginForm.classList.remove('hidden');
+      this.registerForm.classList.add('hidden');
+    } else {
+      this.authTabRegister.classList.add('active');
+      this.authTabLogin.classList.remove('active');
+      this.registerForm.classList.remove('hidden');
+      this.loginForm.classList.add('hidden');
+    }
+    this.hideAuthMessage();
+  }
+
+  showAuthMessage(msg, type = 'error') {
+    this.authMessageBanner.textContent = msg;
+    this.authMessageBanner.className = `auth-message-banner ${type}`;
+    this.authMessageBanner.classList.remove('hidden');
+  }
+
+  hideAuthMessage() {
+    this.authMessageBanner.classList.add('hidden');
+  }
+
+  async handleLoginSubmit() {
+    const username = this.loginUsernameInput.value.trim();
+    const password = this.loginPasswordInput.value.trim();
+
+    if (!username || !password) {
+      this.showAuthMessage('Please fill in all required fields.');
+      return;
+    }
+
+    if (this.isBackendOnline) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          this.showAuthMessage(data.detail || 'Login failed. Please check credentials.');
+          return;
+        }
+
+        // Save session
+        this.authToken = data.token;
+        this.currentUser = data.user;
+        localStorage.setItem('geotask_token', data.token);
+        localStorage.setItem('geotask_user', JSON.stringify(data.user));
+
+        this.updateUserUI();
+        this.closeAuthModal();
+        this.loadTasks(); // Reload tasks for authenticated user
+        return;
+      } catch (e) {
+        console.error('Login error:', e);
+      }
+    }
+
+    // Offline / Standby Login Fallback
+    const mockUser = { id: 'usr_' + username.toLowerCase(), username: username };
+    const mockToken = 'tok_' + Date.now();
+
+    this.currentUser = mockUser;
+    this.authToken = mockToken;
+    localStorage.setItem('geotask_user', JSON.stringify(mockUser));
+    localStorage.setItem('geotask_token', mockToken);
+
+    this.updateUserUI();
+    this.closeAuthModal();
+    this.loadTasks();
+  }
+
+  async handleRegisterSubmit() {
+    const username = this.registerUsernameInput.value.trim();
+    const password = this.registerPasswordInput.value.trim();
+    const confirmPassword = this.registerConfirmPasswordInput.value.trim();
+
+    if (!username || !password) {
+      this.showAuthMessage('Please complete all required fields.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      this.showAuthMessage('Passwords do not match.');
+      return;
+    }
+
+    if (this.isBackendOnline) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          this.showAuthMessage(data.detail || 'Registration failed. Username may already exist.');
+          return;
+        }
+
+        // Save session
+        this.authToken = data.token;
+        this.currentUser = data.user;
+        localStorage.setItem('geotask_token', data.token);
+        localStorage.setItem('geotask_user', JSON.stringify(data.user));
+
+        this.updateUserUI();
+        this.showAuthMessage(`Account created! User ID: ${data.user.id}`, 'success');
+        setTimeout(() => {
+          this.closeAuthModal();
+          this.loadTasks();
+        }, 1200);
+        return;
+      } catch (e) {
+        console.error('Register error:', e);
+      }
+    }
+
+    // Offline / Standby Register Fallback
+    const mockUser = { id: 'usr_' + Date.now(), username: username };
+    const mockToken = 'tok_' + Date.now();
+
+    this.currentUser = mockUser;
+    this.authToken = mockToken;
+    localStorage.setItem('geotask_user', JSON.stringify(mockUser));
+    localStorage.setItem('geotask_token', mockToken);
+
+    this.updateUserUI();
+    this.closeAuthModal();
+    this.loadTasks();
+  }
+
+  handleLogout() {
+    this.currentUser = null;
+    this.authToken = null;
+    localStorage.removeItem('geotask_user');
+    localStorage.removeItem('geotask_token');
+    this.updateUserUI();
+    this.loadTasks(); // Reload tasks list (filtered or empty)
   }
 
   openTaskModal(coords = null, taskToEdit = null) {
@@ -437,7 +682,10 @@ class GeoTaskApp {
      ========================================================================== */
   async checkBackendConnection() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/todos`, { method: 'GET' });
+      const res = await fetch(`${API_BASE_URL}/api/todos`, {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      });
       if (res.ok) {
         this.isBackendOnline = true;
         this.apiDot.className = 'api-dot online';
@@ -457,8 +705,14 @@ class GeoTaskApp {
 
     if (this.isBackendOnline) {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/todos`);
-        this.tasks = await res.json();
+        const res = await fetch(`${API_BASE_URL}/api/todos`, {
+          headers: this.getAuthHeaders()
+        });
+        if (res.ok) {
+          this.tasks = await res.json();
+        } else {
+          this.tasks = this.getLocalTasks();
+        }
       } catch (e) {
         this.tasks = this.getLocalTasks();
       }
@@ -472,7 +726,7 @@ class GeoTaskApp {
 
   getLocalTasks() {
     const data = localStorage.getItem('geotask_items');
-    return data ? JSON.parse(data) : [
+    const all = data ? JSON.parse(data) : [
       {
         id: 'sample-1',
         title: 'Handel\'s Homemade Ice Cream - Long Beach',
@@ -482,9 +736,15 @@ class GeoTaskApp {
         address_name: '4201 E Ocean Blvd, Long Beach, CA',
         radius_meters: 150,
         completed: false,
+        user_id: null,
         created_at: new Date().toISOString()
       }
     ];
+
+    if (this.currentUser && this.currentUser.id) {
+      return all.filter(t => t.user_id === this.currentUser.id || !t.user_id);
+    }
+    return all;
   }
 
   saveLocalTasks() {
@@ -502,6 +762,7 @@ class GeoTaskApp {
       longitude: parseFloat(this.taskLngInput.value),
       radius_meters: parseInt(this.taskRadiusInput.value, 10) || 100,
       completed: false,
+      user_id: this.currentUser ? this.currentUser.id : null,
       created_at: new Date().toISOString()
     };
 
@@ -510,13 +771,13 @@ class GeoTaskApp {
         if (id) {
           await fetch(`${API_BASE_URL}/api/todos/${id}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: this.getAuthHeaders(),
             body: JSON.stringify(taskData)
           });
         } else {
           await fetch(`${API_BASE_URL}/api/todos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: this.getAuthHeaders(),
             body: JSON.stringify(taskData)
           });
         }
@@ -549,7 +810,7 @@ class GeoTaskApp {
       try {
         await fetch(`${API_BASE_URL}/api/todos/${id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this.getAuthHeaders(),
           body: JSON.stringify({ completed: task.completed })
         });
       } catch (e) {
@@ -565,7 +826,10 @@ class GeoTaskApp {
   async deleteTask(id) {
     if (this.isBackendOnline) {
       try {
-        await fetch(`${API_BASE_URL}/api/todos/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE_URL}/api/todos/${id}`, {
+          method: 'DELETE',
+          headers: this.getAuthHeaders()
+        });
       } catch (e) {
         console.error('API Delete Error:', e);
       }
